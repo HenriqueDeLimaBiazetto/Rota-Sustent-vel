@@ -1,0 +1,1216 @@
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+
+  <!-- arquivo principal do projeto
+     algumas partes foram sendo adicionadas ao longo do desenvolvimento -->
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rota Sustentável Dashboard</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+
+      :root {
+      --bg-main: #060913;
+      --bg-card: rgba(15, 23, 42, 0.6);
+      --border-glow: rgba(16, 185, 129, 0.15);
+      --border-glow-hover: rgba(52, 211, 153, 0.4);
+      --primary-emerald: #10b981;
+      --light-emerald: #34d399;
+      --accent-amber: #fbbf24;
+      --accent-blue: #0ea5e9;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --glass-bg: rgba(6, 9, 19, 0.75);
+      --radius-lg: 20px;
+      --radius-md: 12px;
+      }
+
+      * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      }
+
+  /* fundo escuro esse ficou melhor...   (é melhor)*/
+      body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background-image:
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 40%),
+      radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 40%);
+      overflow-x: hidden;
+      }
+
+
+
+      button {
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+      }
+      button:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
+      filter: brightness(1.1);
+      }
+      button:active {
+      transform: translateY(-1px) scale(0.98);
+      }
+
+
+      header {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 1.2rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      }
+
+      .brand-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      }
+
+      .brand-logo {
+      height: 40px;
+      width: auto;
+      display: none;
+      }
+
+      .brand-container h1 {
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+      background: linear-gradient(135deg, #fff, var(--light-emerald));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      }
+
+      nav {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0.3rem;
+      border-radius: 30px;
+      display: flex;
+      gap: 0.2rem;
+      overflow-x: auto;
+      max-width: 100%;
+      scrollbar-width: none;
+      }
+      nav::-webkit-scrollbar { display: none; }
+
+      nav button {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 0.6rem 1.4rem;
+      border-radius: 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      }
+
+      nav button:hover { color: var(--text-primary); }
+      nav button.active-tab {
+      background-color: var(--primary-emerald);
+      color: #000;
+      font-weight: 700;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+      }
+
+      .page-content {
+      display: none;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+      transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      flex: 1;
+      }
+      .page-content.active-page {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+      }
+
+
+      .content-container { max-width: 1300px; margin: 3rem auto; padding: 0 2rem; }
+      .diagnostic-header { margin-bottom: 2.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 1.5rem; }
+      .diagnostic-header h2 { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
+      .diagnostic-header p { color: var(--text-secondary); font-size: 1.1rem; }
+
+      .dashboard-grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 2.5rem; }
+
+      .painel-principal {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-lg);
+      padding: 3rem;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      transition: border-color 0.4s;
+      }
+      .painel-principal:hover { border-color: var(--border-glow-hover); }
+
+      .data-block { margin-bottom: 2.5rem; }
+      .data-block:last-child { margin-bottom: 0; }
+      .data-block h3 { color: var(--light-emerald); font-size: 1.4rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; }
+      .data-block p { color: var(--text-secondary); text-align: justify; font-size: 1.05rem; }
+
+      .lado-metricas { display: flex; flex-direction: column; gap: 1.5rem; }
+      .caixa-metrica {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glow);
+      padding: 2rem;
+      border-radius: var(--radius-md);
+      backdrop-filter: blur(10px);
+      transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+      }
+      .caixa-metrica:hover {
+      border-color: var(--border-glow-hover);
+      transform: scale(1.03);
+      box-shadow: 0 15px 30px rgba(16, 185, 129, 0.1);
+      }
+      .caixa-metrica h4 { font-size: 2.8rem; font-weight: 900; color: var(--accent-amber); line-height: 1; margin-bottom: 0.6rem; }
+      .caixa-metrica p { color: var(--text-primary); font-weight: 700; font-size: 1rem; margin-bottom: 0.3rem; }
+      .caixa-metrica span { color: var(--text-secondary); font-size: 0.88rem; }
+
+
+      .map-wrapper-layout { position: relative; height: calc(100vh - 78px); width: 100%; display: flex; flex-direction: column; }
+      #map { width: 100%; flex: 1; z-index: 1; background: #0b0f19; }
+
+      .map-panel {
+      position: absolute; top: 25px; left: 25px; background: rgba(6, 9, 19, 0.9);
+      border: 1px solid var(--border-glow); padding: 2rem; border-radius: var(--radius-lg);
+      z-index: 10; max-width: 390px; width: 90%; backdrop-filter: blur(20px);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+      }
+      .map-panel h3 { font-size: 1.5rem; margin-bottom: 0.5rem; font-weight: 800; color: #fff; }
+      .map-panel p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem; }
+
+      .coordenadas-info { background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.05); }
+      .coordenadas-info p { margin-bottom: 0.5rem; color: var(--text-secondary); }
+      .coordenadas-info strong { color: var(--text-primary); }
+      .coordenada-vazia { color: #475569; font-style: italic; }
+
+      .map-panel button {
+      width: 100%; padding: 1rem; color: #000; border: none; border-radius: var(--radius-md);
+      font-weight: 700; font-size: 1rem; cursor: pointer; margin-bottom: 0.6rem;
+      }
+      #btn-calcular { background-color: #334155; color: #64748b; cursor: not-allowed; }
+      #btn-limpar { background-color: #ef4444; color: white; display: none; }
+
+      .btn-toggle-tema {
+      background-color: transparent !important;
+      border: 1px solid rgba(255,255,255,0.15) !important;
+      color: #fff !important;
+      font-size: 0.88rem !important;
+      padding: 0.6rem !important;
+      margin-top: 0.5rem;
+      }
+      .btn-toggle-tema:hover { border-color: var(--light-emerald) !important; background: rgba(16, 185, 129, 0.05) !important; }
+
+      .result-display {
+      margin-top: 1.5rem; background: rgba(245, 158, 11, 0.08); border: 1px solid var(--accent-amber);
+      padding: 1.2rem; color: #fde047; border-radius: var(--radius-md);
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+
+      @keyframes popIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+      }
+
+      #map-alert {
+      position: absolute; top: 25px; left: 50%; transform: translateX(-50%);
+      background-color: #ef4444; color: white; padding: 1rem 2rem; font-weight: 700;
+      border-radius: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 100; display: none;
+      text-align: center; width: 90%; max-width: 400px;
+      }
+
+      .simulator-credits {
+      background: rgba(6, 9, 19, 0.9); border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 1rem 2rem; font-size: 0.8rem; color: var(--text-secondary);
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 10; backdrop-filter: blur(10px);
+      }
+
+
+      .game-section { padding: 3rem 2rem; max-width: 1300px; margin: 0 auto; }
+      .game-section h2 { font-size: 2.5rem; font-weight: 800; text-align: center; margin-bottom: 0.3rem; }
+      .game-section .instructions { text-align: center; color: var(--text-secondary); margin-bottom: 2.5rem; font-size: 1.05rem; }
+
+      .game-layout { display: grid; grid-template-columns: 2.2fr 1fr; gap: 2.5rem; align-items: flex-start; }
+
+      .game-fullscreen-container {
+      position: relative; width: 100%; background-color: #030712;
+      border-radius: var(--radius-lg); border: 1px solid var(--border-glow);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); overflow: hidden;
+      }
+
+      .area-game { position: relative; width: 100%; display: flex; flex-direction: column; }
+      #gameCanvas { display: block; width: 100%; height: auto; background-color: #0f172a; max-height: 70vh; }
+
+
+      .mobile-controls {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 15px;
+      background: #0b0f19;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      width: 100%;
+      }
+      .btn-ctrl {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      padding: 20px;
+      border-radius: var(--radius-md);
+      font-size: 1.5rem;
+      font-weight: bold;
+      text-align: center;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      cursor: pointer;
+      }
+      .btn-ctrl:active {
+      background: var(--primary-emerald);
+      color: #000;
+      }
+
+      .fullscreen-hud-overlay {
+      position: absolute; top: 15px; left: 15px; right: 15px;
+      display: flex; justify-content: space-between; pointer-events: none; z-index: 4; gap: 10px;
+      }
+
+      .hud-card {
+      background: rgba(6, 9, 19, 0.85); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.6rem 1rem;
+      border-radius: var(--radius-md); color: white; font-weight: 700; font-size: 0.9rem;
+      display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center;
+      }
+      .hud-card span { color: var(--light-emerald); font-size: 1.1rem; }
+      #hud-carga { color: var(--accent-amber); }
+
+      .fullscreen-exit-notice {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(6, 9, 19, 0.95); border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.7rem 1.8rem; border-radius: 30px; font-size: 0.9rem; font-weight: 600;
+      color: #fff; display: none; align-items: center; gap: 15px; z-index: 4;
+      }
+      .btn-exit-fs-trigger {
+      background: #ef4444; border: none; color: white; padding: 0.4rem 1rem;
+      border-radius: 20px; font-weight: 700; cursor: pointer; font-size: 0.8rem;
+      }
+
+      .game-action-bar { display: flex; justify-content: flex-end; margin-top: 1rem; }
+      .btn-action-style {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+      color: white; padding: 0.7rem 1.6rem; border-radius: var(--radius-md); font-weight: 600;
+      cursor: pointer; font-size: 0.95rem;
+      }
+      .btn-action-style:hover { border-color: var(--light-emerald); background: rgba(16, 185, 129, 0.05); }
+
+      .difficulty-container { margin: 1.2rem 0; display: flex; gap: 0.6rem; justify-content: center; width: 100%; flex-wrap: wrap; }
+      .btn-diff {
+      background: #1e293b; border: 1px solid rgba(255,255,255,0.08); color: var(--text-secondary);
+      padding: 0.6rem 1.4rem; border-radius: 20px; font-weight: 700; cursor: pointer;
+      font-size: 0.9rem;
+      }
+
+      .btn-diff.active-diff[data-diff="facil"] { background: var(--accent-blue); color: #000; border-color: var(--accent-blue); box-shadow: 0 0 15px rgba(14, 165, 233, 0.4); }
+      .btn-diff.active-diff[data-diff="medio"] { background: var(--accent-amber); color: #000; border-color: var(--accent-amber); box-shadow: 0 0 15px rgba(251, 191, 36, 0.4); }
+      .btn-diff.active-diff[data-diff="dificil"] { background: #ef4444; color: white; border-color: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+
+      .game-over-screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(3, 7, 18, 0.96); display: flex; flex-direction: column;
+      justify-content: center; align-items: center; z-index: 5; padding: 1.5rem;
+      text-align: center;
+      }
+      .game-over-screen h3 { font-size: 2rem; color: var(--light-emerald); font-weight: 900; margin-bottom: 0.5rem; }
+      .game-over-screen.ended h3 { color: #ef4444; }
+      .game-over-screen p { color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem; }
+
+      .panel-estatisticas-finais {
+      background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08);
+      padding: 1.2rem 1.8rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;
+      width: 100%; max-width: 340px; font-size: 0.95rem; text-align: left;
+      }
+      .panel-estatisticas-finais div { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+      .panel-estatisticas-finais strong { color: #fff; }
+      .estrelas-rank { font-size: 1.8rem; color: var(--accent-amber); margin-bottom: 1rem; letter-spacing: 4px; text-align: center; }
+
+      .game-over-screen input { background: #111827; border: 1px solid rgba(255,255,255,0.1); padding: 0.9rem 1.4rem; font-size: 1.1rem; border-radius: var(--radius-md); color: white; margin-bottom: 1.2rem; width: 100%; max-width: 300px; text-align: center; transition: border-color 0.3s; }
+      .game-over-screen input:focus { border-color: var(--light-emerald); outline: none; }
+      .game-over-screen button { padding: 1rem 2.5rem; background: var(--primary-emerald); color: #000; border: none; border-radius: 30px; font-weight: 800; font-size: 1.1rem; cursor: pointer; box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); width: 100%; max-width: 280px; }
+
+
+      .ranking-area-right {
+      background: var(--bg-card); border: 1px solid var(--border-glow);
+      border-radius: var(--radius-lg); padding: 2rem; min-height: 350px;
+      backdrop-filter: blur(10px);
+      }
+      .ranking-area-right h3 { font-size: 1.3rem; font-weight: 800; color: #fff; margin-bottom: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.6rem; letter-spacing: 0.05em; }
+      .ranking-item { display: flex; justify-content: space-between; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.02); font-size: 1rem; color: var(--text-secondary); transition: background 0.2s; }
+      .ranking-item:hover { background: rgba(255,255,255,0.01); }
+      .ranking-item:nth-child(1) { background: rgba(16, 185, 129, 0.12); font-weight: 700; color: var(--light-emerald); border-radius: var(--radius-md); border: 1px solid rgba(16, 185, 129, 0.2); }
+
+
+      .ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.8rem; margin-top: 2rem; }
+      .card-ref {
+      background: var(--bg-card); border: 1px solid var(--border-glow);
+      padding: 2.2rem; border-radius: var(--radius-lg); backdrop-filter: blur(10px);
+      transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+      }
+      .card-ref:hover {
+      border-color: var(--border-glow-hover);
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      }
+      .card-ref tag { display: inline-block; background: rgba(16, 185, 129, 0.12); color: var(--light-emerald); padding: 0.25rem 0.9rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin-bottom: 1rem; border: 1px solid rgba(16, 185, 129, 0.15); }
+      .card-ref h3 { font-size: 1.3rem; margin-bottom: 0.6rem; color: #fff; font-weight: 700; }
+      .card-ref p { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1.2rem; }
+      .card-ref a { color: var(--accent-blue); text-decoration: none; font-weight: 600; font-size: 0.95rem; display: inline-block; }
+      .card-ref a:hover { text-decoration: underline; }
+
+      footer { background-color: #03050a; color: #475569; text-align: center; padding: 3rem 1rem; font-size: 0.9rem; border-top: 1px solid rgba(255,255,255,0.03); margin-top: auto; }
+
+
+      @media (max-width: 950px) {
+      .dashboard-grid, .game-layout, .ref-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+      header { flex-direction: column; gap: 1.2rem; padding: 1rem; }
+      .content-container { margin: 1.5rem auto; padding: 0 1rem; }
+      .painel-principal { padding: 1.5rem; }
+      .diagnostic-header h2 { font-size: 1.8rem; }
+
+      .map-wrapper-layout { height: auto; min-height: calc(100vh - 140px); }
+      #map { height: 350px; flex: none; }
+      .map-panel { position: relative; top: 0; left: 0; width: 100%; max-width: 100%; border-radius: 0; border: none; border-bottom: 1px solid var(--border-glow); padding: 1.5rem 1rem; order: 2; }
+      .simulator-credits { order: 3; flex-direction: column; gap: 5px; text-align: center; padding: 1rem; }
+
+      .mobile-controls { display: grid; }
+      .game-section { padding: 1.5rem 1rem; }
+      .game-section h2 { font-size: 1.8rem; }
+      .game-action-bar { display: none; }
+      }
+
+
+
+
+      .accessibility-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9000;
+      transition: backdrop-filter 0.3s;
+      }
+
+      body.grayscale .accessibility-overlay {
+      backdrop-filter: grayscale(100%);
+      -webkit-backdrop-filter: grayscale(100%);
+      }
+
+      body.negative-contrast .accessibility-overlay {
+      backdrop-filter: invert(100%) hue-rotate(180deg);
+      -webkit-backdrop-filter: invert(100%) hue-rotate(180deg);
+      }
+
+      body.grayscale.negative-contrast .accessibility-overlay {
+      backdrop-filter: grayscale(100%) invert(100%) hue-rotate(180deg);
+      -webkit-backdrop-filter: grayscale(100%) invert(100%) hue-rotate(180deg);
+      }
+
+
+      body.high-contrast {
+      --bg-main: #000000;
+      --bg-card: #000000;
+      --text-primary: #ffff00;
+      --text-secondary: #ffffff;
+      --border-glow: #ffff00;
+      --glass-bg: #000000;
+      --primary-emerald: #ffff00;
+      --light-emerald: #ffff00;
+      background-image: none !important;
+      }
+      body.high-contrast * {
+      border-color: #ffff00 !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+      }
+      body.high-contrast .accessibility-overlay { display: none; }
+
+      body.light-mode {
+      --bg-main: #ffffff;
+      --bg-card: rgba(240, 244, 248, 0.9);
+      --glass-bg: rgba(255, 255, 255, 0.95);
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --border-glow: #cbd5e1;
+      --primary-emerald: #059669;
+      --light-emerald: #10b981;
+      background-image: none !important;
+      }
+
+      body.underline-links a,
+      body.underline-links button,
+      body.underline-links h1 {
+      text-decoration: underline !important;
+      text-underline-offset: 3px;
+      }
+
+      body.readable-font, body.readable-font * {
+      font-family: Arial, Helvetica, sans-serif !important;
+      letter-spacing: 0.05em !important;
+      word-spacing: 0.1em !important;
+      line-height: 1.6 !important;
+      }
+
+
+      .accessibility-toggle {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      z-index: 99999;
+      background: var(--primary-emerald);
+      color: #000;
+      border: none;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      font-size: 1.6rem;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      transition: all 0.3s;
+      }
+
+      .accessibility-panel {
+      color: white;
+      position: fixed;
+      bottom: 100px;
+      right: 30px;
+      width: 320px;
+      background: rgba(10, 15, 25, 0.98);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 18px;
+      padding: 1.5rem;
+      z-index: 99999;
+      backdrop-filter: blur(20px);
+      display: none;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      max-height: 75vh;
+      overflow-y: auto;
+      }
+
+      .accessibility-panel.active {
+      display: block;
+      animation: fadePanel 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      .accessibility-panel h3 {
+      margin-bottom: 1.2rem;
+      font-size: 1.2rem;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 0.8rem;
+      font-weight: 800;
+      }
+
+
+      .accessibility-buttons-vertical {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      }
+
+      .accessibility-buttons-vertical button {
+      background: transparent;
+      color: #f8fafc;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 1rem;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      transition: all 0.2s;
+      width: 100%;
+      }
+
+      .accessibility-buttons-vertical button .icon {
+      font-size: 1.3rem;
+      width: 26px;
+      text-align: center;
+      }
+
+      .accessibility-buttons-vertical button:hover {
+      background: rgba(255, 255, 255, 0.05);
+      }
+
+      .accessibility-buttons-vertical button.active-tool {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--primary-emerald);
+      color: var(--light-emerald);
+      font-weight: 700;
+      }
+
+      @keyframes fadePanel {
+      from { opacity:0; transform: translateY(20px); }
+      to { opacity:1; transform: translateY(0); }
+      }
+
+      @media(max-width:700px) {
+      .accessibility-panel { width: calc(100% - 40px); right: 20px; bottom: 90px; }
+      .accessibility-toggle { right: 20px; bottom: 20px; width: 55px; height: 55px; }
+      }
+
+
+
+
+      body::before{
+      content:'';
+      position:fixed;
+      inset:0;
+      background:
+      radial-gradient(circle at top left, rgba(16,185,129,0.15), transparent 35%),
+      radial-gradient(circle at bottom right, rgba(59,130,246,0.12), transparent 35%);
+      pointer-events:none;
+      z-index:-1;
+      }
+
+      header{ box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+
+      .brand-container h1{ font-size:1.7rem !important; letter-spacing:-0.05em; }
+
+      nav{ background: rgba(255,255,255,0.05) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03); }
+
+      nav button{ position:relative; overflow:hidden; }
+
+      nav button::before{ content:''; position:absolute; inset:0; background:linear-gradient(135deg, rgba(255,255,255,0.08), transparent); opacity:0; transition:0.3s; }
+
+      nav button:hover::before{ opacity:1; }
+
+      .painel-principal, .caixa-metrica, .map-panel, .card-ref, .ranking-area-right{
+      background: linear-gradient( 180deg, rgba(17,24,39,0.88), rgba(11,15,25,0.92) ) !important;
+      border:1px solid rgba(255,255,255,0.08) !important;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+      }
+
+      .caixa-metrica h4{ font-size:3rem !important; text-shadow:0 0 25px rgba(251,191,36,0.35); }
+
+      .diagnostic-header h2, .game-section h2{
+      background:linear-gradient(135deg,#ffffff,#34d399); -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      }
+
+      button{ position:relative; overflow:hidden; }
+
+      button::after{
+      content:''; position:absolute; top:-100%; left:-30%; width:40%; height:300%;
+      background:rgba(255,255,255,0.18); transform:rotate(25deg); transition:0.5s;
+      }
+
+      button:hover::after{ left:120%; }
+
+      #gameCanvas{ border-top:1px solid rgba(255,255,255,0.06); }
+
+      footer{ background:linear-gradient(180deg,#05070d,#02040a) !important; }
+
+      ::-webkit-scrollbar{ width:10px; }
+      ::-webkit-scrollbar-thumb{ background:linear-gradient(#10b981,#34d399); border-radius:20px; }
+      ::-webkit-scrollbar-track{ background:#0b0f19; }
+
+      @keyframes floatingGlow{
+      0%{transform:translateY(0px);} 50%{transform:translateY(-4px);} 100%{transform:translateY(0px);}
+      }
+
+      .caixa-metrica, .card-ref{ animation:floatingGlow 5s ease-in-out infinite; }
+
+    </style>
+    </head>
+    <body>
+
+<!--
+obs:
+- depois separo
+-->
+
+
+  <!-- Para conferir depois:
+      - talvez separar css depois
+      - ver se precisa otimizar o jogo (so se ja tiver terminado tudo, pois está funcionando bem)
+      - testar no celular (acho que ta resolvido mas testa dnv depois, porque ate a primeira versão tava de boa)
+      -->
+
+
+  <!-- OVERLAY PARA FILTROS SEGUROS -->
+    <div id="accessibilityOverlay" class="accessibility-overlay"></div>
+
+  <!-- NOVO BOTÃO NO CANTO INFERIOR DIREITO -->
+    <button class="accessibility-toggle" onclick="toggleAccessibilityPanel()" aria-label="Abrir ferramentas de acessibilidade">♿</button>
+
+    <div class="accessibility-panel" id="accessibilityPanel">
+    <h3>Ferramentas de acessibilidade</h3>
+
+    <div class="accessibility-buttons-vertical">
+    <button onclick="changeFontSize(1)"><span class="icon">🔍</span> Aumentar texto</button>
+    <button onclick="changeFontSize(-1)"><span class="icon">🔍</span> Diminuir texto</button>
+    <button id="btn-gray" onclick="toggleAcc('grayscale', 'btn-gray')"><span class="icon">⬛</span> Escala de cinza</button>
+    <button id="btn-hc" onclick="toggleAcc('high-contrast', 'btn-hc')"><span class="icon">◐</span> Alto contraste</button>
+    <button id="btn-neg" onclick="toggleAcc('negative-contrast', 'btn-neg')"><span class="icon">👁️</span> Contraste negativo</button>
+    <button id="btn-light" onclick="toggleAcc('light-mode', 'btn-light')"><span class="icon">💡</span> Fundo claro</button>
+    <button id="btn-under" onclick="toggleAcc('underline-links', 'btn-under')"><span class="icon">🔗</span> Botões sublinhados</button>
+    <button id="btn-font" onclick="toggleAcc('readable-font', 'btn-font')"><span class="icon">𝐀</span> Legibilidade da fonte</button>
+    <button onclick="resetAccessibility()"><span class="icon">↺</span> Redefinir</button>
+    </div>
+    </div>
+
+
+    <header>
+    <div class="brand-container" onclick="switchTab('diagnostico')">
+    <img src="logo.png" alt="Logo" class="brand-logo" id="mainLogo" onload="this.style.display='block'">
+    <h1>🚛 Rota Sustentável</h1>
+    </div>
+    <nav>
+    <button id="tab-diagnostico" class="active-tab" onclick="switchTab('diagnostico')">Diagnóstico</button>
+    <button id="tab-simulador" onclick="switchTab('simulador')">Simulador de Rotas</button>
+    <button id="tab-jogo" onclick="switchTab('jogo')">O Jogo do Caminhão</button>
+    <button id="tab-referencias" onclick="switchTab('referencias')">Referências</button>
+    </nav>
+    </header>
+
+    <div id="page-diagnostico" class="page-content active-page">
+    <div class="content-container">
+    <div class="diagnostic-header">
+    <h2>Análise Estrutural do Fluxo Agroalimentar</h2>
+    <p>Mapeamento das vulnerabilidades logísticas de transporte na América Latina.</p>
+    </div>
+    <div class="dashboard-grid">
+    <div class="painel-principal">
+    <div class="data-block">
+    <h3>📉 1. O Abismo da Infraestrutura Rural</h3>
+    <p>Diferente dos países desenvolvidos, onde as malhas viárias conectam as fazendas diretamente a hubs automatizados de distribuição, a América Latina enfrenta barreiras físicas drásticas. Estima-se que menos de 15% das estradas rurais na região sejam pavimentadas. O tráfego de caminhões pesados por estradas de terra esburacadas submete cargas perecíveis a vibrações mecânicas severas, quebrando barreiras celulares de vegetais e desencadeando processos rápidos de podridão antes mesmo do carregamento atingir as rodovias estaduais.</p>
+    </div>
+    <div class="data-block">
+    <h3>❄️ 2. Quebra Sistemática da Cadeia de Frio</h3>
+    <p>O transporte de frutas, legumes e hortaliças exige controle térmico rigoroso. No entanto, a frota ativa que opera na infraestrutura logística latino-americana é majoritariamente composta por caminhões de carroceria aberta ou baús comuns de metal sem isolamento. Sob a incidência solar tropical direta, a temperatura interna dos contêineres improvisados ultrapassa facilmente os 38°C, acelerando a taxa de respiração dos tecidos vegetais e provocando perdas bioquímicas massivas em viagens de média e longa distância.</p>
+    </div>
+    </div>
+    <div class="lado-metricas">
+    <div class="caixa-metrica">
+    <h4>15% Direto</h4>
+    <p>Hemorragia de Alimentos na Estrada</p>
+    <span>Volume médio perdido puramente durante o deslocamento logístico inicial.</span>
+    </div>
+    <div class="caixa-metrica">
+    <h4>55% de Perda</h4>
+    <p>Frutas e Hortaliças</p>
+    <span>A categoria mais impactada pela ausência completa de refrigeração móvel.</span>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+
+    <div id="page-simulador" class="page-content">
+    <div class="map-wrapper-layout">
+    <div id="map-alert">⚠️ Ponto Inválido! Selecione uma região interna da América Latina ou parte do sul da américa do norte.⚠️</div>
+    <div id="map"></div>
+    <div class="map-panel">
+    <h3>Simulador Logístico</h3>
+    <p>Marque dois pontos internos no mapa para mensurar a estimativa analítica de perda física da carga.</p>
+    <div class="coordenadas-info">
+    <p>📍 <strong>Origem:</strong> <span id="txt-ponto1" class="coordenada-vazia">Aguardando clique...</span></p>
+    <p>🏁 <strong>Destino:</strong> <span id="txt-ponto2" class="coordenada-vazia">Aguardando clique...</span></p>
+    </div>
+    <button type="button" id="btn-calcular" onclick="calcularRota()">Processar Métricas</button>
+    <button type="button" id="btn-limpar" onclick="limparMapa()">Limpar Mapa</button>
+    <button type="button" class="btn-toggle-tema" id="btn-tema-mapa" onclick="alternarTemaMapa()">🎨 Mudar para Mapa Claro</button>
+
+    <div id="resultado" class="result-display" style="display: none;">
+    <p>🛣️ Percurso Calculado: <span id="res-distancia">0</span> km</p>
+    <p>📉 Desperdício Estimado: <span id="res-porcentagem">0</span>%</p>
+    </div>
+    </div>
+    <div class="simulator-credits">
+    <span>📊 <b>Modelo Preditivo Calibrado</b> via relatórios oficiais: FAO | World Bank</span>
+    <span>Margem de erro: ±3.4%</span>
+    </div>
+    </div>
+    </div>
+
+    <div id="page-jogo" class="page-content">
+    <section class="game-section">
+    <h2>🚚 Simulador Operacional: Logística Viva</h2>
+    <p class="instructions">Conduza a carga mantendo a integridade. Evite 🔘 <b>Buracos</b> e intercepte as 📦 <b>Cargas Compartilhadas</b>!</p>
+
+    <div class="game-layout">
+    <div class="game-area-left">
+    <div class="game-fullscreen-container" id="fullscreenArea">
+
+    <div class="fullscreen-hud-overlay">
+    <div class="hud-card">📦 Carga: <span id="hud-carga">100%</span></div>
+    <div class="hud-card">🛣️ Km: <span id="hud-distancia">0 pts</span></div>
+    </div>
+
+    <div class="fullscreen-exit-notice" id="exitNotice">
+    <span>Modo Imersivo Ativo (Pressione <b>ESC</b> para Sair)</span>
+    <button class="btn-exit-fs-trigger" onclick="fecharModoImersivo()">Sair</button>
+    </div>
+
+    <div class="area-game">
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <div class="mobile-controls">
+    <div class="btn-ctrl" id="btn-left">⬅️ ESQ</div>
+    <div class="btn-ctrl" id="btn-right">DIR ➡️</div>
+    </div>
+
+    <div id="gameOverScreen" class="game-over-screen">
+    <h3 id="gameStatusTitle">Desafio Logístico</h3>
+    <p id="gameStatusDesc">Selecione a intensidade da malha rodoviária:</p>
+
+    <div id="statsFinaisContainer" class="panel-estatisticas-finais" style="display: none;">
+    <div class="estrelas-rank" id="resEstrelas">⭐⭐⭐</div>
+    <div>Distância Rodada: <strong id="statDistancia">0 pts</strong></div>
+    <div>Eficiência de Entrega: <strong id="statEficiencia">0%</strong></div>
+    <div>Desperdício de Alimentos: <strong id="statDesperdicio" style="color: #ef4444;">0%</strong></div>
+    </div>
+
+    <div class="difficulty-container" id="diffContainer">
+    <button type="button" class="btn-diff" data-diff="facil" onclick="mudarDificuldade('facil')">Fácil</button>
+    <button type="button" class="btn-diff active-diff" data-diff="medio" onclick="mudarDificuldade('medio')">Médio</button>
+    <button type="button" class="btn-diff" data-diff="dificil" onclick="mudarDificuldade('dificil')">Difícil</button>
+    </div>
+
+    <div id="cadastro-score" style="display:none; margin-top: 10px; width: 100%;">
+    <p style="color: var(--text-secondary); margin-bottom: 5px;">Seu nome para salvar no ranking global:</p>
+    <input type="text" id="nomeJogador" maxlength="10" placeholder="Insira seu Nome">
+    </div>
+    <button id="btn-game-action" onclick="gerenciarBotaoJogo()">Iniciar Deslocamento</button>
+    </div>
+    </div>
+    </div>
+    <div class="game-action-bar">
+    <button class="btn-action-style" onclick="abrirModoImersivo()">📺 Ativar Modo Tela Cheia</button>
+    </div>
+    </div>
+
+    <div class="ranking-area-right">
+    <h3 id="ranking-title-ui">🏆 CLASSIFICAÇÃO GLOBAL</h3>
+    <ul class="ranking-list" id="ranking-list-ui"></ul>
+    </div>
+    </div>
+    </section>
+    </div>
+
+    <div id="page-referencias" class="page-content">
+    <div class="content-container">
+    <div class="diagnostic-header">
+    <h2>Referências e Embasamento Científico</h2>
+    <p>Fontes de dados e relatórios globais utilizados no desenvolvimento do site</p>
+    </div>
+
+    <div class="ref-grid">
+    <div class="card-ref">
+    <tag>FAO / ONU</tag>
+    <h3>The State of Food and Agriculture (SOFA)</h3>
+    <p>Relatório global focado em analisar os índices de perda de alimentos (Food Loss Index) desde a colheita até o mercado varejista, detalhando os impactos logísticos.</p>
+    <a href="https://www.fao.org/publications/sofa/en/" target="_blank">Acessar Relatório Oficial →</a>
+    </div>
+
+    <div class="card-ref">
+    <tag>BANCO MUNDIAL</tag>
+    <h3>Logistics Performance Index (LPI)</h3>
+    <p>Banco de dados e estudo comparativo internacional que avalia a eficiência das infraestruturas de transporte terrestres e alfandegárias de países em desenvolvimento.</p>
+    <a href="https://lpi.worldbank.org/" target="_blank">Ver Indicadores do LPI →</a>
+    </div>
+
+    <div class="card-ref">
+    <tag>PNUMA</tag>
+    <h3>Food Waste Index Report</h3>
+    <p>Estudo focado nas consequências ambientais causadas pelo desperdício, avaliando as emissões geradas pela decomposição de resíduos orgânicos ao longo das cadeias produtivas.</p>
+    <a href="https://www.unep.org/resources/report/unep-food-waste-index-report-2024" target="_blank">Ler Publicação Científica →</a>
+    </div>
+
+    <div class="card-ref">
+    <tag>CEPAL</tag>
+    <h3>Infraestrutura Logística na América Latina</h3>
+    <p>Análise econômica e técnica detalhada a respeito da falta de investimentos em estradas secundárias e vicinais no continentee o impacto direto no escoamento do agro.</p>
+    <a href="https://www.cepal.org/pt-br" target="_blank">Explorar Publicações da CEPAL →</a>
+    </div>
+    </div>
+    </div>
+    </div>
+
+    <footer>
+    <p> Agrinho 2026 - Henrique De Lima Biazetto</p>
+    </footer>
+
+  <!-- Bibliotecas e Lógica -->
+    <!-- mapa -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+
+      let currentFontSize = 100; // Porcentagem do tamanho da base
+
+      window.toggleAccessibilityPanel = function(){
+      document.getElementById('accessibilityPanel').classList.toggle('active');
+      }
+
+      window.changeFontSize = function(step){
+      currentFontSize += (step * 10);
+      if(currentFontSize < 80) currentFontSize = 80;
+      if(currentFontSize > 150) currentFontSize = 150;
+      document.documentElement.style.fontSize = currentFontSize + '%';
+      localStorage.setItem('acc_fontSize', currentFontSize);
+      }
+
+  // Função universal para ativar/desativar as classes no BODY (TESTE 2)
+      window.toggleAcc = function(className, btnId) {
+      document.body.classList.toggle(className);
+      let isActive = document.body.classList.contains(className);
+      let btn = document.getElementById(btnId);
+      if(btn) btn.classList.toggle('active-tool', isActive);
+      localStorage.setItem('acc_' + className, isActive);
+      }
+
+  // Função para Resetar Tudo ao Padrão
+      window.resetAccessibility = function(){
+      currentFontSize = 100;
+      document.documentElement.style.fontSize = '100%';
+
+      const classesParaRemover = ['grayscale', 'high-contrast', 'negative-contrast', 'light-mode', 'underline-links', 'readable-font'];
+      document.body.classList.remove(...classesParaRemover);
+
+      document.querySelectorAll('.accessibility-buttons-vertical button').forEach(b => b.classList.remove('active-tool'));
+
+      localStorage.removeItem('acc_fontSize');
+      classesParaRemover.forEach(key => localStorage.removeItem('acc_' + key));
+      }
+
+  // Carregar configurações salvas no LocalStorage quando atualizar a página
+      window.addEventListener('load', () => {
+      let savedSize = localStorage.getItem('acc_fontSize');
+      if(savedSize) {
+      currentFontSize = parseInt(savedSize);
+      document.documentElement.style.fontSize = currentFontSize + '%';
+      }
+
+      const toggles = [
+      {cls: 'grayscale', id: 'btn-gray'},
+      {cls: 'high-contrast', id: 'btn-hc'},
+      {cls: 'negative-contrast', id: 'btn-neg'},
+      {cls: 'light-mode', id: 'btn-light'},
+      {cls: 'underline-links', id: 'btn-under'},
+      {cls: 'readable-font', id: 'btn-font'}
+      ];
+
+      toggles.forEach(t => {
+      if(localStorage.getItem('acc_' + t.cls) === 'true') {
+      document.body.classList.add(t.cls);
+      let btn = document.getElementById(t.id);
+      if(btn) btn.classList.add('active-tool');
+      }
+      });
+      });
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <script>
+
+      // usei firebase aqui porque foi o jeito mais rápido de testar o ranking
+        const firebaseConfig = {
+      apiKey: "AIzaSyAwCaQSkP-gEGgh-Adak-KB18e_afkw53E",
+      authDomain: "rota-sustentavel.firebaseapp.com",
+      databaseURL: "https://rota-sustentavel-default-rtdb.firebaseio.com",
+      projectId: "rota-sustentavel",
+      storageBucket: "rota-sustentavel.appspot.com",
+      messagingSenderId: "688641307958",
+      appId: "1:688641307958:web:5bd469b8a4d0c20e75ef97"
+      };
+
+      let useFirebase = false;
+
+      if (firebaseConfig.apiKey !== "API_KEY (DPS COLOCAR AQUI)") {
+      try {
+      firebase.initializeApp(firebaseConfig);
+      var database = firebase.database();
+      useFirebase = true;
+      document.getElementById('ranking-title-ui').innerText = "🏆 CLASSIFICAÇÃO GLOBAL 🏆";
+      } catch(e) {
+      console.error("Falha ao inicializar o Firebase. Usando armazenamento local.", e);
+      }
+      }
+
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      function playSomClique() {
+      try {
+      let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(450, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(850, audioCtx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + 0.08);
+      osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+      } catch(e){}
+      }
+
+      function playSomBatida() {
+      try {
+      let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(160, audioCtx.currentTime); osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.25, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.22);
+      osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.22);
+      } catch(e){}
+      }
+
+      function playSomColeta() {
+      try {
+      let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+      osc.type = 'triangle'; osc.frequency.setValueAtTime(550, audioCtx.currentTime); osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.07);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+      osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.18);
+      } catch(e){}
+      }
+
+  // navegação entre páginas
+      // troca entre as abas do site
+        function switchTab(tabName) {
+      playSomClique();
+      document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active-page'));
+      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active-tab'));
+      document.getElementById(`tab-${tabName}`).classList.add('active-tab');
+      document.getElementById(`page-${tabName}`).classList.add('active-page');
+      if(tabName === 'simulador') { setTimeout(() => { map.invalidateSize(); }, 200); }
+      if(tabName !== 'jogo' && jogoAtivo) { finalJogo(); }
+      }
+
+      const baseLeaderboard = [
+      {nome: "Rodrigo", pontos: 1520}, {nome: "Mariana", pontos: 1210}, {nome: "Carlos", pontos: 950}, {nome: "Ana", pontos: 740}, {nome: "Pedro", pontos: 410}
+      ];
+
+      if (!localStorage.getItem('localLeaderboard')) localStorage.setItem('localLeaderboard', JSON.stringify(baseLeaderboard));
+
+      // atualizar ranking
+        function renderizarPlacarRanking(listaCompleta) {
+      listaCompleta.sort((a, b) => b.pontos - a.pontos);
+      const listaUI = document.getElementById('ranking-list-ui'); listaUI.innerHTML = '';
+      let top10 = listaCompleta.slice(0, 10);
+      top10.forEach((item, index) => {
+      listaUI.innerHTML += `<li class="ranking-item"><span>${index + 1}. ${item.nome}</span><span>${item.pontos} pts</span></li>`;
+      });
+      }
+
+      function carregarDadosRanking() {
+      if (useFirebase) {
+      database.ref('ranking').on('value', (snapshot) => {
+      let dados = snapshot.val(); let lista = [];
+      if (dados) { Object.keys(dados).forEach(key => lista.push(dados[key])); } else { lista = [...baseLeaderboard]; }
+      renderizarPlacarRanking(lista);
+      });
+      } else {
+      let listaLocal = JSON.parse(localStorage.getItem('localLeaderboard')); renderizarPlacarRanking(listaLocal);
+      }
+      }
+      carregarDadosRanking();
+
+      function salvarPontuacao(novoNome, novaPontuacao) {
+      if (useFirebase) { database.ref('ranking').push({ nome: novoNome, pontos: parseInt(novaPontuacao) });
+      } else {
+      let lista = JSON.parse(localStorage.getItem('localLeaderboard')); lista.push({nome: novoNome, pontos: novaPontuacao});
+      localStorage.setItem('localLeaderboard', JSON.stringify(lista)); carregarDadosRanking();
+      }
+      }
+
+      // configuração inicial do mapa
+        const map = L.map('map', {zoomControl: true, attributionControl: false}).setView([-15.7801, -47.9292], 4);
+      const urlMapaEscuro = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+      const urlMapaClaro = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      let camadaMapaAtual = L.tileLayer(urlMapaEscuro).addTo(map); let modoMapaEscuro = true;
+
+      function alternarTemaMapa() {
+      playSomClique(); map.removeLayer(camadaMapaAtual); const botao = document.getElementById('btn-tema-mapa');
+      if (modoMapaEscuro) { camadaMapaAtual = L.tileLayer(urlMapaClaro).addTo(map); botao.innerText = "🎨 Mudar para Mapa Escuro"; modoMapaEscuro = false;
+      } else { camadaMapaAtual = L.tileLayer(urlMapaEscuro).addTo(map); botao.innerText = "🎨 Mudar para Mapa Claro"; modoMapaEscuro = true; }
+      }
+
+      let ponto1 = null, ponto2 = null, marcador1 = null, marcador2 = null, linhaRota = null;
+      const boundsLA = { latMax: 32.0, latMin: -56.0, lngMax: -34.0, lngMin: -118.0 };
+
+      function checarLimitesRegiao(lat, lng) { return (lat >= boundsLA.latMin && lat <= boundsLA.latMax && lng >= boundsLA.lngMin && lng <= boundsLA.lngMax); }
+
+      map.on('click', function(e) {
+      const lat = e.latlng.lat; const lng = e.latlng.lng;
+      if (!checarLimitesRegiao(lat, lng)) {
+      const alerta = document.getElementById('map-alert'); alerta.style.display = 'block'; setTimeout(() => { alerta.style.display = 'none'; }, 3000); return;
+      }
+      playSomClique();
+      if (!ponto1) {
+      ponto1 = e.latlng; marcador1 = L.marker(ponto1).addTo(map).bindPopup("<b>Origem</b>").openPopup();
+      document.getElementById('txt-ponto1').innerText = `${lat.toFixed(3)}, ${lng.toFixed(3)}`; document.getElementById('txt-ponto1').classList.remove('coordenada-vazia');
+      } else if (!ponto2) {
+      ponto2 = e.latlng; marcador2 = L.marker(ponto2).addTo(map).bindPopup("<b>Destino</b>").openPopup();
+      document.getElementById('txt-ponto2').innerText = `${lat.toFixed(3)}, ${lng.toFixed(3)}`; document.getElementById('txt-ponto2').classList.remove('coordenada-vazia');
+      const btn = document.getElementById('btn-calcular');
+      btn.disabled = false; btn.style.backgroundColor = 'var(--primary-emerald)'; btn.style.color = '#000';
+      document.getElementById('btn-limpar').style.display = 'block';
+      }
+      });
+
+  // cálculo básico de perda
+      // conta simples pra estimar a perda durante o transporte
+        function calcularRota() {
+      if (!ponto1 || !ponto2) return; playSomClique();
+      const distanciaKm = (map.distance(ponto1, ponto2) / 1000).toFixed(1);
+      if (linhaRota) map.removeLayer(linhaRota);
+      linhaRota = L.polyline([ponto1, ponto2], {color: '#ef4444', weight: 4, dashArray: '6, 6'}).addTo(map); map.fitBounds(L.latLngBounds(ponto1, ponto2));
+      let taxaPerda = (distanciaKm * 0.022).toFixed(1);
+      if (taxaPerda < 4.5) taxaPerda = 4.5; if (taxaPerda > 45.0) taxaPerda = 45.0;
+      document.getElementById('res-distancia').innerText = distanciaKm; document.getElementById('res-porcentagem').innerText = taxaPerda;
+      document.getElementById('resultado').style.display = 'block';
+      if(window.innerWidth <= 950) document.getElementById('resultado').scrollIntoView({ behavior: 'smooth' });
+      }
+
+  // limpar tudo e voltar ao estado inicial
+      function limparMapa() {
+      playSomClique();
+      if (marcador1) map.removeLayer(marcador1); if (marcador2) map.removeLayer(marcador2); if (linhaRota) map.removeLayer(linhaRota);
+      ponto1 = null; ponto2 = null;
+      document.getElementById('txt-ponto1').innerText = "Aguardando clique..."; document.getElementById('txt-ponto1').classList.add('coordenada-vazia');
+      document.getElementById('txt-ponto2').innerText = "Aguardando clique..."; document.getElementById('txt-ponto2').classList.add('coordenada-vazia');
+      const btn = document.getElementById('btn-calcular'); btn.disabled = true; btn.style.backgroundColor = '#334155'; btn.style.color = '#64748b';
+      document.getElementById('btn-limpar').style.display = 'none'; document.getElementById('resultado').style.display = 'none';
+      map.setView([-15.7801, -47.9292], 4);
+      }
+
+      const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+      let jogoAtivo = false, estadoJanela = "inicio", dificuldadeAtual = "medio"; let caminhao, obstaculos, score, carga, frameCount;
+
+      const configDificuldade = {
+      facil: { caminhaoVelocidade: 8.5, obstaculoVelocidadeBase: 2.2, spawnIntervalo: 90, chanceBuraco: 0.55 },
+      medio: { caminhaoVelocidade: 6.5, obstaculoVelocidadeBase: 4.0, spawnIntervalo: 60, chanceBuraco: 0.75 },
+      dificil: { caminhaoVelocidade: 5.5, obstaculoVelocidadeBase: 5.5, spawnIntervalo: 40, chanceBuraco: 0.85 }
+      };
+
+      function mudarDificuldade(tipo) {
+      playSomClique(); dificuldadeAtual = tipo;
+      document.querySelectorAll('.btn-diff').forEach(btn => btn.classList.remove('active-diff')); document.querySelector(`.btn-diff[data-diff="${tipo}"]`).classList.add('active-diff');
+      }
+
+      let teclas = { ArrowLeft: false, ArrowRight: false };
+      window.addEventListener('keydown', e => { if(e.key in teclas) teclas[e.key] = true; });
+      window.addEventListener('keyup', e => { if(e.key in teclas) teclas[e.key] = false; });
+
+      const btnLeft = document.getElementById('btn-left'); const btnRight = document.getElementById('btn-right');
+      btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); teclas.ArrowLeft = true; }); btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); teclas.ArrowLeft = false; });
+      btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); teclas.ArrowRight = true; }); btnRight.addEventListener('touchend', (e) => { e.preventDefault(); teclas.ArrowRight = false; });
+      btnLeft.addEventListener('mousedown', () => { teclas.ArrowLeft = true; }); btnLeft.addEventListener('mouseup', () => { teclas.ArrowLeft = false; }); btnLeft.addEventListener('mouseleave', () => { teclas.ArrowLeft = false; });
+      btnRight.addEventListener('mousedown', () => { teclas.ArrowRight = true; }); btnRight.addEventListener('mouseup', () => { teclas.ArrowRight = false; }); btnRight.addEventListener('mouseleave', () => { teclas.ArrowRight = false; });
+
+      function abrirModoImersivo() { let painel = document.getElementById('fullscreenArea'); if (painel.requestFullscreen) { painel.requestFullscreen(); } }
+      function fecharModoImersivo() { if (document.exitFullscreen) { document.exitFullscreen(); } }
+
+      function gerenciarBotaoJogo() {
+      playSomClique();
+      if (estadoJanela === "inicio") { iniciarJogo();
+      } else if (estadoJanela === "gameover") {
+      const nomeInput = document.getElementById('nomeJogador').value.trim();
+      if(nomeInput === "") { alert("Digite seu nome!"); return; }
+      salvarPontuacao(nomeInput, score);
+      document.getElementById('cadastro-score').style.display = 'none'; document.getElementById('statsFinaisContainer').style.display = 'none';
+      document.getElementById('diffContainer').style.display = 'flex'; estadoJanela = "inicio";
+      document.getElementById('gameStatusTitle').innerText = "Desafio Logístico"; document.getElementById('gameStatusDesc').innerText = "Selecione a intensidade da malha rodoviária:"; document.getElementById('btn-game-action').innerText = "Iniciar Deslocamento";
+      }
+      }
+
+  // começa uma nova partida
+      // começo do jogo
+        function iniciarJogo() {
+      document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameOverScreen').classList.remove('ended');
+      jogoAtivo = true; estadoJanela = "jogando"; score = 0; carga = 100; frameCount = 0; obstaculos = [];
+      let cfg = configDificuldade[dificuldadeAtual];
+      caminhao = { x: canvas.width / 2 - 25, y: canvas.height - 95, width: 50, height: 80, velocidad: cfg.caminhaoVelocidade };
+      loopJogo();
+      }
+
+  // loop do jogo
+      function loopJogo() { if (!jogoAtivo) return; atualizarJogo(); desenharJogo(); frameCount++; requestAnimationFrame(loopJogo); }
+
+      function atualizarJogo() {
+      let cfg = configDificuldade[dificuldadeAtual];
+      if (teclas.ArrowLeft && caminhao.x > 165) caminhao.x -= caminhao.velocidad; if (teclas.ArrowRight && caminhao.x < canvas.width - 165 - caminhao.width) caminhao.x += caminhao.velocidad;
+      score += 1; document.getElementById('hud-distancia').innerText = `${score} pts`;
+
+      if (frameCount % cfg.spawnIntervalo === 0) {
+      let posX = 165 + Math.random() * (canvas.width - 330 - 45); let flagItem = Math.random() < cfg.chanceBuraco ? "buraco" : "bonus";
+      obstaculos.push({ x: posX, y: -45, width: 42, height: 42, velocidade: cfg.obstaculoVelocidadeBase + (score / 900), tipo: flagItem });
+      }
+
+      for (let i = obstaculos.length - 1; i >= 0; i--) {
+      obstaculos[i].y += obstaculos[i].velocidade;
+      if (obstaculos[i].x < caminhao.x + caminhao.width && obstaculos[i].x + obstaculos[i].width > caminhao.x && obstaculos[i].y < caminhao.y + caminhao.height && obstaculos[i].y + obstaculos[i].height > caminhao.y) {
+      if (obstaculos[i].tipo === "buraco") { playSomBatida(); carga -= (score > 800) ? 25 : 20; } else { playSomColeta(); carga += 15; if (carga > 100) carga = 100; }
+      if (carga < 0) carga = 0; document.getElementById('hud-carga').innerText = `${carga}%`;
+      obstaculos.splice(i, 1); if (carga <= 0) finalJogo(); continue;
+      }
+      if (obstaculos[i].y > canvas.height) obstaculos.splice(i, 1);
+      }
+      }
+
+  // desenhar elementos na tela
+      function desenharJogo() {
+      ctx.fillStyle = "#060913"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#0f172a"; ctx.fillRect(150, 0, canvas.width - 300, canvas.height);
+      if (score > 800) { ctx.fillStyle = "rgba(6, 9, 19, 0.4)"; ctx.fillRect(150, 0, canvas.width - 300, canvas.height); }
+      ctx.fillStyle = "#34d399"; ctx.fillRect(150, 0, 4, canvas.height); ctx.fillRect(canvas.width - 154, 0, 4, canvas.height);
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.setLineDash([25, 25]); ctx.lineDashOffset = -frameCount * 5;
+      ctx.beginPath(); ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height); ctx.stroke();
+      ctx.setLineDash([]);
+      obstaculos.forEach(item => {
+      if (item.tipo === "buraco") {
+      ctx.fillStyle = "#030712"; ctx.beginPath(); ctx.arc(item.x + 21, item.y + 21, 20, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2; ctx.stroke();
+      } else {
+      ctx.fillStyle = "#10b981"; ctx.fillRect(item.x, item.y, item.width, item.height); ctx.fillStyle = "#34d399"; ctx.fillRect(item.x + (item.width/2) - 3, item.y, 6, item.height); ctx.fillRect(item.x, item.y + (item.height/2) - 3, item.width, 6);
+      }
+      });
+      ctx.fillStyle = "#f8fafc"; ctx.fillRect(caminhao.x, caminhao.y, caminhao.width, caminhao.height - 22);
+      ctx.fillStyle = "#ef4444"; ctx.fillRect(caminhao.x + 2, caminhao.y - 22, caminhao.width - 4, 22);
+      ctx.fillStyle = "#060913"; ctx.fillRect(caminhao.x - 3, caminhao.y + 12, 3, 14); ctx.fillRect(caminhao.x + caminhao.width, caminhao.y + 12, 3, 14); ctx.fillRect(caminhao.x - 3, caminhao.y + 48, 3, 14); ctx.fillRect(caminhao.x + caminhao.width, caminhao.y + 48, 3, 14);
+      if (score > 800) { ctx.fillStyle = "rgba(239, 68, 68, 0.12)"; ctx.fillRect(150, 0, canvas.width-300, canvas.height); ctx.fillStyle = "#ef4444"; ctx.font = "bold 12px sans-serif"; ctx.fillText("⚠️ CLIMA INSTÁVEL: PISTA ESCORREGADIA", 170, 30); }
+      }
+
+      function finalJogo() {
+      jogoAtivo = false; estadoJanela = "gameover"; playSomBatida(); document.getElementById('gameOverScreen').classList.add('ended');
+      let totalDesperdicio = Math.min(100, Math.max(5, (score * 0.04).toFixed(0))); let eficiencia = (100 - totalDesperdicio);
+      let estrelas = "⭐"; if (score > 600) estrelas = "⭐⭐"; if (score > 1200) estrelas = "⭐⭐⭐"; if (score > 2000) estrelas = "⭐⭐⭐⭐⭐";
+      document.getElementById('resEstrelas').innerText = estrelas; document.getElementById('statDistancia').innerText = `${score} pts`; document.getElementById('statEficiencia').innerText = `${eficiencia}%`; document.getElementById('statDesperdicio').innerText = `${totalDesperdicio}%`;
+      document.getElementById('gameStatusTitle').innerText = `Entrega Interrompida!`; document.getElementById('gameStatusDesc').innerText = `Relatório de Performance Logística:`;
+      document.getElementById('diffContainer').style.display = 'none'; document.getElementById('statsFinaisContainer').style.display = 'block'; document.getElementById('cadastro-score').style.display = 'block'; document.getElementById('btn-game-action').innerText = "Salvar Registro & Voltar"; document.getElementById('gameOverScreen').style.display = 'flex';
+      }
+    </script>
+    </body>
+    </html>
